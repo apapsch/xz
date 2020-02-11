@@ -64,8 +64,8 @@ const HeaderLen = 13
 type header struct {
 	properties Properties
 	dictCap    int
-	// uncompressed size; negative value if no size is given
-	size int64
+	// uncompressed size; nil if no size is given
+	size *uint64
 }
 
 // marshalBinary marshals the header.
@@ -88,7 +88,7 @@ func (h *header) marshalBinary() (data []byte, err error) {
 
 	// uncompressed size
 	var s uint64
-	if h.size > 0 {
+	if h.size != nil {
 		s = uint64(h.size)
 	} else {
 		s = noHeaderSize
@@ -121,14 +121,9 @@ func (h *header) unmarshalBinary(data []byte) error {
 	// uncompressed size
 	s := uint64LE(data[5:])
 	if s == noHeaderSize {
-		h.size = -1
+		h.size = nil
 	} else {
-		h.size = int64(s)
-		if h.size < 0 {
-			return errors.New(
-				"LZMA header: uncompressed size " +
-					"out of int64 range")
-		}
+		h.size = uint64(s)
 	}
 
 	return nil
@@ -163,5 +158,5 @@ func ValidHeader(data []byte) bool {
 	if !validDictCap(h.dictCap) {
 		return false
 	}
-	return h.size < 0 || h.size <= 1<<38
+	return h.size == nil || h.size <= 1<<64-1
 }
